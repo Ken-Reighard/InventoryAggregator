@@ -1,0 +1,6 @@
+@InventoryAggregator.Api_HostAddress = http://localhost:5206
+
+GET {{InventoryAggregator.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
