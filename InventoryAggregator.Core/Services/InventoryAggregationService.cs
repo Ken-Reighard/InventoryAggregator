@@ -1,12 +1,7 @@
 ﻿using InventoryAggregator.Core.DTO;
 using InventoryAggregator.Core.Interfaces;
 using InventoryAggregator.Core.Models;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.Intrinsics.X86;
-using System.Text;
-using static System.Net.WebRequestMethods;
 
 namespace InventoryAggregator.Core.Services
 {
