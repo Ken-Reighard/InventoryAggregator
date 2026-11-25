@@ -1,5 +1,4 @@
-﻿using InventoryAggregator.Core.DTO;
-using InventoryAggregator.Core.Interfaces;
+﻿using InventoryAggregator.Core.Interfaces;
 using InventoryAggregator.Core.Models;
 using System.Globalization;
 

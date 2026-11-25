@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\InventoryAggregator.Api\InventoryAggregator.Api.csproj" />
     <ProjectReference Include="..\InventoryAggregator.Core\InventoryAggregator.Core.csproj" />
   </ItemGroup>
 

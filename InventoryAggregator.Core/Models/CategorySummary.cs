@@ -1,9 +1,4 @@
-﻿using InventoryAggregator.Core.DTO;
-using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace InventoryAggregator.Core.Models
+﻿namespace InventoryAggregator.Core.Models
 {
     public class CategorySummary
     {

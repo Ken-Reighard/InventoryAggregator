@@ -4,7 +4,6 @@ using InventoryAggregator.Core.Interfaces;
 using InventoryAggregator.Core.Models;
 using Microsoft.Extensions.Options;
 using System.Net;
-using System.Net.Http.Json;
 
 namespace InventoryAggregator.Api.Services
 {
@@ -50,7 +49,7 @@ namespace InventoryAggregator.Api.Services
                     var payload = await response.Content.ReadFromJsonAsync<UpstreamRecordsPageResponse>(cancellationToken);
                     return payload ?? throw new InvalidOperationException($"Upstream API returned an empty payload for page {page}.");
                 }
-                catch (HttpRequestException ex) when (attempt < maxAttempts)
+                catch (HttpRequestException ex) when (attempt < maxAttempts && ex.StatusCode is null or HttpStatusCode.RequestTimeout)
                 {
                     var delay = TimeSpan.FromMilliseconds(500 * Math.Pow(2, attempt - 1));
 
@@ -102,7 +101,6 @@ namespace InventoryAggregator.Api.Services
 
             for (int page = 2; page <= firstPage.TotalPages; page++)
             {
-                //await Task.Delay(TimeSpan.FromMilliseconds(5000), cancellationToken);
                 var nextPage = await FetchPageAsync(page, cancellationToken);
 
                 foreach (var record in nextPage.Records)

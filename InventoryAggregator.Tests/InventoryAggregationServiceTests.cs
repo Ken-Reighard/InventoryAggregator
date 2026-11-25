@@ -70,4 +70,47 @@ public class InventoryAggregationServiceTests
         Assert.Equal(6, toys.MostRecentlyUpdated.Id);
         Assert.Equal(3, toys.Items.Count);
     }
+
+    [Fact]
+    public async Task GetAggregatedInventoryAsync_NormalizesCategories_ExcludesZeroQuantity_AndComputesTotals_NoData()
+    {
+        // Arrange
+         var records = new List<InventoryRecord>
+        {
+        };
+
+        var service = new InventoryAggregationService(new FakeInventoryClient(records));
+
+        // Act
+        var result = await service.GetAggregatedInventoryAsync();
+
+        // Assert
+        Assert.Empty(result.CategorySummaries);
+    }
+
+    [Fact]
+    public async Task GetAggregatedInventoryAsync_LastUpdateTie()
+    {
+        // Arrange
+        var t1 = new DateTimeOffset(2026, 9, 1, 12, 0, 0, TimeSpan.Zero);
+
+        var records = new List<InventoryRecord>
+        {
+            new() { Id = 2, Name = "Mouse", Category = "ELECTRONICS", Price = 25m, Quantity = 4, LastUpdated = t1 },
+            new() { Id = 1, Name = "Laptop", Category = "  electronics ", Price = 1000m, Quantity = 2, LastUpdated = t1 }
+        };
+
+        var service = new InventoryAggregationService(new FakeInventoryClient(records));
+
+        // Act
+        var result = await service.GetAggregatedInventoryAsync();
+
+        // Assert
+        var electronics = Assert.Single(result.CategorySummaries);
+        Assert.Equal("Electronics", electronics.Category);
+        Assert.Equal(2100m, electronics.TotalInventoryValue); // (1000 * 2) + (25 * 4)
+        Assert.Equal(2, electronics.AvailableRecordCount);
+        Assert.Equal(2, electronics.MostRecentlyUpdated.Id);
+        Assert.Equal(2, electronics.Items.Count);
+    }
 }

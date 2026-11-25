@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace InventoryAggregator.Core.DTO
+﻿namespace InventoryAggregator.Core.Models
 {
     public class CategoryItem
     {
