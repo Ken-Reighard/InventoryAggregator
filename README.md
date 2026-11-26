@@ -1,142 +1,152 @@
-Inventory Aggregation
-# Inventory Summary Service
+# Inventory Aggregation Service
 
-An ASP.NET Core (.NET 10) web API service that fetches paginated product inventory from the upstream Inventory API, deduplicates records across page boundaries, normalizes categories, excludes out-of-stock items, and exposes a single aggregated summary endpoint at `GET /api/inventory/summary`.
-
----
-
-## Prerequisites
-
-- [.NET 10 SDK](https://microsoft.com)
-- Valid `X-API-Key` for the upstream Inventory API (`https://prologmobile.com`)
+A `.NET 10` Web API that fetches paginated inventory records from the upstream Inventory API, validates dataset completeness, aggregates available stock by normalized category, and exposes a single summary endpoint (`GET /api/inventory/summary`).
 
 ---
 
 ## Setup & Configuration
 
-The upstream API key is **not** committed to source control or stored in `appsettings.json`. Configure it locally via **.NET User Secrets** (recommended for local development) or an **environment variable**.
+### Prerequisites
+- [.NET 10 SDK](https://microsoft.com)
 
-### Option 1: .NET User Secrets (Recommended)
-From the repository root:
+### Configure the Upstream API Key
+The API key is intentionally excluded from `appsettings.json` and source control. Configure it using either **.NET User Secrets** or an **environment variable** before running the application:
 
-```bash
-dotnet user-secrets set "UpstreamInventoryApi:ApiKey" "YOUR_API_KEY" --project src/InventorySummary.Api
-```
-
-### Option 2: Environment Variable
-Set `UpstreamInventoryApi__ApiKey` (note the double underscore `__`) in your shell before running the app:
-
-**PowerShell:**
+**Option A — .NET User Secrets (Recommended for local development):**
 ```powershell
-$env:UpstreamInventoryApi__ApiKey="YOUR_API_KEY"
+dotnet user-secrets set "UpstreamInventoryApi:ApiKey" "<your-api-key>" --project InventoryAggregator.Api
 ```
 
-**Bash / macOS / Linux:**
-```bash
-export UpstreamInventoryApi__ApiKey="YOUR_API_KEY"
+**Option B — Environment Variable (Works across Windows, macOS, and Linux):**
+```powershell
+# Windows PowerShell
+$env:UpstreamInventoryApi__ApiKey="<your-api-key>"
+
+# Windows Command Prompt (cmd.exe)
+set UpstreamInventoryApi__ApiKey=<your-api-key>
+
+# Bash / macOS / Linux
+export UpstreamInventoryApi__ApiKey="<your-api-key>"
 ```
 
-> **Startup Validation:** `UpstreamInventoryApiOptions` is validated on application startup (`.ValidateOnStart()`). If `UpstreamInventoryApi:ApiKey` is missing or blank, the application fails fast on startup with a clear configuration error rather than failing at request time.
+*(Optional settings in `InventoryAggregator.Api/appsettings.json`: `UpstreamInventoryApi:BaseUrl` defaults to `https://prologmobile.com` and `UpstreamInventoryApi:PageSize` defaults to `25`.)*
 
 ---
 
-## Running the Application
+## Running the Application & Tests
 
-1. *(Optional, first-time HTTPS setup)* Trust the local ASP.NET Core development certificate:
-   ```bash
-   dotnet dev-certs https --trust
-   ```
+### Run the API
+From the solution root directory (`InventoryAggregator`), run using the `https` launch profile (recommended) or `http` launch profile from `launchSettings.json`:
 
-2. Run the API project from the repository root:
-   ```bash
-   dotnet run --project src/InventorySummary.Api --launch-profile https
-   ```
-   *(Or use `--launch-profile http` to run over HTTP on `http://localhost:5222`.)*
+```powershell
+# Run with HTTPS + HTTP (recommended)
+dotnet run --project InventoryAggregator.Api --launch-profile https
 
-3. Query the summary endpoint:
-   ```bash
-   curl -k https://localhost:7222/api/inventory/summary
-   ```
+# Or run HTTP-only if you prefer not to trust the local HTTPS dev certificate
+dotnet run --project InventoryAggregator.Api --launch-profile http
+```
+
+*(Note: If running locally over HTTPS for the first time on your machine, you may need to trust the local .NET development SSL certificate once by running `dotnet dev-certs https --trust`.)*
+
+Once running, check the terminal output for the listening URL (`https://localhost:<port>` or `http://localhost:<port>`) and call:
+```http
+GET https://localhost:<port>/api/inventory/summary
+```
 
 ### Sample Response (`200 OK`)
+
 ```json
 {
-  "totalInventoryValue": 14820.50,
-  "availableRecordCount": 18,
-  "mostRecentlyUpdated": {
-    "id": 42,
-    "name": "Wireless Barcode Scanner",
-    "category": "Electronics",
-    "price": 129.99,
-    "quantity": 12,
-    "lastUpdated": "2026-03-14T18:22:10Z"
-  },
   "categories": [
     {
       "category": "Electronics",
-      "totalValue": 9450.00,
+      "totalInventoryValue": 18253.18,
+      "availableRecordCount": 25,
+      "mostRecentlyUpdated": {
+        "id": 1037,
+        "name": "Barcode Scanner MK-1037",
+        "lastUpdated": "2026-09-23T17:05:00+00:00"
+      },
       "items": [
         {
-          "id": 10,
-          "name": "Rugged Handheld Terminal",
-          "price": 850.00,
-          "quantity": 10,
-          "lastUpdated": "2026-03-10T12:00:00Z"
+          "id": 1016,
+          "name": "Label Printer MK-1016",
+          "price": 53.74,
+          "quantity": 14,
+          "lastUpdated": "2026-09-20T01:10:00+00:00"
+        },
+        {
+          "id": 1037,
+          "name": "Barcode Scanner MK-1037",
+          "price": 21.99,
+          "quantity": 23,
+          "lastUpdated": "2026-09-23T17:05:00+00:00"
+        }
+      ]
+    },
+    {
+      "category": "Home & Kitchen",
+      "totalInventoryValue": 17151.51,
+      "availableRecordCount": 27,
+      "mostRecentlyUpdated": {
+        "id": 1019,
+        "name": "Electric Kettle MK-1019",
+        "lastUpdated": "2026-09-23T20:36:00+00:00"
+      },
+      "items": [
+        {
+          "id": 1002,
+          "name": "Espresso Machine MK-1002",
+          "price": 8.24,
+          "quantity": 8,
+          "lastUpdated": "2026-09-09T22:31:00+00:00"
         }
       ]
     }
   ]
 }
 ```
+*(Items arrays trimmed for brevity; full output includes all 5 normalized categories: `Electronics`, `Home & Kitchen`, `Office Supplies`, `Outdoor`, and `Toys`.)*
 
----
-
-## Running the Unit Tests
-
-Run all unit tests from the repository root:
-
-```bash
+### Run the Unit Tests
+From the solution root directory:
+```powershell
 dotnet test
 ```
-
-The test suite (`tests/InventorySummary.Tests`) contains **9 xUnit tests** covering:
-- Category normalization (trimming, collapsing internal whitespace, Title Case conversion, and `"Uncategorized"` fallback for null/whitespace values)
-- Filtering out zero-quantity items (`Quantity == 0`) from totals, counts, `mostRecentlyUpdated`, and category item lists
-- Empty inventory handling (when all items are out of stock or the upstream API returns zero records)
-- Multi-page aggregation, cross-page duplicate ID deduplication, and `totalRecords` mismatch detection
-- Deterministic category sorting (alphabetical), item sorting (ascending by `Id`), and `mostRecentlyUpdated` tie-breaking (highest `Id`)
-- `HttpInventoryClient` HTTP behavior: `X-API-Key` header injection, `429 Too Many Requests` retry honoring `Retry-After`, immediate failure without retries on `401 Unauthorized`, and clean error handling on malformed JSON payloads
+This runs all **9 xUnit tests** covering both the core aggregation rules (`InventoryAggregationServiceTests`) and HTTP client resilience/pagination (`HttpInventoryClientTests`).
 
 ---
 
 ## Architecture Overview
 
-The solution is organized into three projects with strict one-way dependencies (`Api` → `Core`, and `Tests` → `Core` & `Api`):
+The solution is organized into three projects with strict one-way dependencies (`Api` -> `Core`, `Tests` -> `Core` & `Api`) to enforce a clean separation of concerns:
 
 ```text
-InventorySummary.slnx
-├── src/
-│   ├── InventorySummary.Core/        # Pure domain models, interfaces, and business logic (no ASP.NET dependencies)
-│   │   ├── Models/                   # Upstream DTOs & API response DTOs
-│   │   └── Services/                 # IUpstreamInventoryClient & InventoryAggregationService
-│   └── InventorySummary.Api/         # ASP.NET Core host, HTTP client, controller, and error mapping
-│       ├── Configuration/            # Strongly-typed UpstreamInventoryApiOptions
-│       ├── Controllers/              # InventoryController (GET /api/inventory/summary)
-│       └── Services/                 # HttpInventoryClient (pagination, headers, transient retry)
-└── tests/
-    └── InventorySummary.Tests/       # xUnit unit tests for aggregation logic and HTTP client behavior
+InventoryAggregator.Api   ──►  InventoryAggregator.Core
+         ▲                               ▲
+         │                               │
+         └──── InventoryAggregator.Tests ┘
 ```
 
-### Key Design Choices
-- **Clean Separation of `Core` and `Api`:** All aggregation, deduplication, normalization, and sorting rules live in `InventorySummary.Core` with zero dependency on HTTP or ASP.NET Core, making the business rules fast and straightforward to unit-test in isolation.
-- **MVC Controller (`InventoryController`):** Uses standard ASP.NET Core controller routing (`[ApiController]`) paired with `ProblemDetails` (`AddProblemDetails()`) so upstream failures (`502 Bad Gateway`), timeouts (`504 Gateway Timeout`), and unexpected server errors (`500 Internal Server Error`) return consistent RFC 7807 error payloads.
-- **Typed `HttpClient` via `IHttpClientFactory`:** `HttpInventoryClient` is registered via `AddHttpClient<IUpstreamInventoryClient, HttpInventoryClient>()` to avoid socket exhaustion and centralize base URL, timeout, `X-API-Key` header injection, and transient retry handling.
-- **Isolated HTTP & Aggregation Testing:** Aggregation tests use a lightweight fake `IUpstreamInventoryClient`, while HTTP client tests inject a custom `HttpMessageHandler` into `HttpClient` to verify retry backoff, header forwarding, and malformed JSON handling without making live network calls.
+### 1. `InventoryAggregator.Core` (Domain Models & Aggregation Business Logic)
+- **What's inside:** `InventoryAggregationService`, domain/response models (`InventoryRecord`, `AggregatedInventoryResponse`, `CategorySummary`, `CategoryItem`, `MostRecentlyUpdatedItem`), and the `IInventoryClient` abstraction.
+- **Why it's separated:** The aggregation engine has zero knowledge of HTTP, pagination envelopes, status codes, or configuration. Because `Core` depends only on the `IInventoryClient` interface (`GetAllRecordsAsync`), the business logic can be unit-tested in isolation without network calls and remains decoupled from how upstream data is transported.
+
+### 2. `InventoryAggregator.Api` (HTTP Client, DI, Configuration & Web Endpoint)
+- **Controller-Based Endpoint (`InventoryController`):** I chose traditional ASP.NET Core MVC Controllers (`ControllerBase` with `[ApiController]`) over Minimal APIs because I am more experienced with controller conventions, attribute routing, explicit `[ProducesResponseType]` metadata, and keeping HTTP error-to-`ProblemDetails` mapping cleanly separated from startup wiring in `Program.cs`.
+- **Typed `HttpClient` via `IHttpClientFactory` (`HttpInventoryClient`):** Encapsulates all upstream API details (`api/records` pagination, `X-Api-Key` header, `Retry-After` handling, and exponential backoff) behind `IInventoryClient`. Using a typed client managed by `IHttpClientFactory` avoids socket exhaustion and stale DNS issues while keeping `Program.cs` clean and making `HttpInventoryClient` easy to test with a custom `HttpMessageHandler`.
+- **Fail-Fast Configuration (`UpstreamInventoryApiOptions`):** Uses the Options pattern with `.ValidateOnStart()` so missing or invalid configuration (such as an omitted `ApiKey` or an out-of-range `PageSize`) fails immediately at startup rather than surfacing mid-request.
+
+### 3. `InventoryAggregator.Tests` (xUnit Test Suite)
+- **Why two test styles are used:**
+  - `InventoryAggregationServiceTests` injects an in-memory `FakeInventoryClient` to verify category normalization, out-of-stock filtering, valuation math, and timestamp tie-breaking without touching HTTP.
+  - `HttpInventoryClientTests` injects a custom `StubHttpMessageHandler` into a real `HttpClient` to verify transient `503`/`429` retry recovery, multi-page deduplication, `TotalRecords` completeness checks, malformed JSON handling, and `401` fail-fast behavior deterministically in milliseconds.
 
 ---
 
-## Decisions & Assumptions
+## Assumptions, Decisions & Known Limitations
 
+### Decisions & Assumptions
 - **Category Normalization:** Raw category names are trimmed, internal consecutive whitespace is collapsed, and strings are converted to invariant Title Case (`"  electronics "` and `"ELECTRONICS"` both normalize to `"Electronics"`). Null or blank categories map to `"Uncategorized"`.
 - **Product Name & Price Assumptions:** Upstream product `Name` values are assumed to be already clean and are preserved as-is without whitespace or casing normalization. Upstream `Price` values are assumed to be valid positive numbers (`decimal`), so negative-price validation is not applied.
 - **Out-of-Stock Filtering (`Quantity > 0`):** Only records with `Quantity > 0` are included; zero-quantity (and any non-positive) items are excluded from `totalInventoryValue`, `availableRecordCount`, `mostRecentlyUpdated`, and `items`.
@@ -144,10 +154,7 @@ InventorySummary.slnx
 - **Deterministic Ordering & Tie-Breaking:** Output categories are sorted alphabetically (`OrdinalIgnoreCase`), items within each category are sorted ascending by `Id`, and `mostRecentlyUpdated` breaks identical `LastUpdated` timestamps by highest `Id`.
 - **Transient Retry & Rate-Limit Backoff:** `HttpInventoryClient` retries `429 Too Many Requests`, `5xx` server errors, `408 Request Timeout`, and transient network drops up to 4 attempts—honoring the upstream `Retry-After` header when present and falling back to exponential backoff with jitter—while failing immediately on permanent `4xx` responses (`401`, `403`, `404`) and malformed JSON payloads.
 
----
-
-## Known Limitations & Next Steps With More Time
-
+### Known Limitations & Next Steps With More Time
 - **No Endpoint Authentication / Authorization:** Per the assignment specification, `GET /api/inventory/summary` is exposed without inbound authentication. In a production deployment, this endpoint would be secured (such as JWT bearer authentication or API key middleware) and paired with rate limiting.
 - **No Response Caching:** Every call to `GET /api/inventory/summary` currently fetches all upstream pages fresh. Adding a short in-memory cache (for example, caching results for 15–30 seconds) would speed up repeated requests and reduce the chance of hitting upstream rate limits.
 - **Sequential Page Fetching:** Pages `2..totalPages` are fetched one at a time in a loop. Fetching pages concurrently with a cap on simultaneous requests would improve response times on larger datasets, though sequential fetching was kept here to avoid triggering the staging server's rate limiter.
