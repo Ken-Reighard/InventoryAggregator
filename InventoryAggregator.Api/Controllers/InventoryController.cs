@@ -1,6 +1,7 @@
 ﻿using InventoryAggregator.Core.Interfaces;
 using InventoryAggregator.Core.Models;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace InventoryAggregator.Api.Controllers
 {
@@ -29,6 +30,14 @@ namespace InventoryAggregator.Api.Controllers
             {
                 var summary = await _aggregationService.GetAggregatedInventoryAsync(cancellationToken);
                 return Ok(summary);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Upstream inventory API returned malformed JSON.");
+                return Problem(
+                    title: "Upstream inventory data error",
+                    detail: "The upstream inventory API returned malformed JSON.",
+                    statusCode: StatusCodes.Status502BadGateway);
             }
             catch (HttpRequestException ex)
             {

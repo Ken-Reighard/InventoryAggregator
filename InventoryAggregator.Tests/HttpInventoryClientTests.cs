@@ -150,6 +150,42 @@ namespace InventoryAggregator.Tests
 
         }
 
+        [Fact]
+        public async Task GetAllRecordsAsync_ThrowsJsonExceptionImmediately_WhenRecordFieldIsMalformed()
+        {
+            // Arrange: "price" is a string ("not-a-number") instead of a valid decimal
+            var malformedJson = """
+        {
+          "records": [
+            {
+              "id": 1,
+              "name": "Cordless Drill",
+              "category": "Tools",
+              "price": "not-a-number",
+              "quantity": 4,
+              "lastUpdated": "2026-09-20T01:10:00+00:00"
+            }
+          ],
+          "page": 1,
+          "pageSize": 25,
+          "totalRecords": 1,
+          "totalPages": 1
+        }
+        """;
+
+            var handler = new StubHttpMessageHandler((_, _) =>
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(malformedJson, Encoding.UTF8, "application/json")
+                });
+
+            var client = CreateClient(handler);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<JsonException>(() => client.GetAllRecordsAsync());
+            Assert.Equal(1, handler.CallCount);
+        }
+
         private static HttpInventoryClient CreateClient(HttpMessageHandler handler, int pageSize = 2)
         {
             // 1. Wrap your StubHttpMessageHandler inside a real HttpClient
@@ -169,6 +205,7 @@ namespace InventoryAggregator.Tests
             // 3. Pass a no-op logger (NullLogger) and return your real HttpInventoryClient
             return new HttpInventoryClient(httpClient, options, NullLogger<HttpInventoryClient>.Instance);
         }
+
         private sealed class StubHttpMessageHandler : HttpMessageHandler
         {
             private readonly Func<HttpRequestMessage, int, HttpResponseMessage> _handler;
